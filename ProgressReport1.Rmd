@@ -1,0 +1,130 @@
+---
+title: "Parrotfish Paper"
+author: "Caitlin Zimmer"
+date: "10/4/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE, error=TRUE}
+knitr::opts_chunk$set(echo = TRUE, error=TRUE)
+```
+
+My first step of recreating the data analysis from this paper was to download the data. The data was available in an excel file which I converted to a csv file. This led to some issues with column names that I fixed in the code below and rewrote into a new csv. 
+```{r}
+library(tidyverse)
+fishdata<- read.csv("FishingmodeldataforR.csv", stringsAsFactors = TRUE)
+fishdata1<-fishdata %>%rename(Mean_length=ï..Parrotfish.mean.size..cm.,
+                    Coral_cover=Coral.cover....,
+                    Depth=Depth..m.,Distance_Pass=Distance.to.pass..m.,
+                    Distance_Port=Distance.to.port..m.,
+                    Export_Category=Export.category, 
+                    HD_20=Human.density.within.20.km, 
+                    HD_200=Human.density.within.200.km,
+                    NPP=NPP..mg.C.m2.day.,
+                    SST=SST..K.,
+                    SED1=Socio.economic.development..PCA1.,
+                    SED2=Socio.economic.development..PCA2.,
+                    Tourist20=Tourist.pressure..20.km.,
+                    Tourist200=Tourist.pressure..200.km., 
+                    Wave=Wave.exposure..J.m3.)
+write.csv(fishdata1,file="FishdataRecreating.csv",row.names = FALSE)
+```
+Now that I have the data my next step is to gain an understanding of the package used to run boosted regression trees. This package is called gbm (generalized boosted models). I read "A working guide to boosted regression trees" by J. Elith to understand more about the analysis I am going to recreate. This guide was cited in the paper. It includes a tutorial with code and extra functions for completing a BRT. 
+
+In this code chunk I will begin following the tutorial mentioned above but applying it to the fish data from the paper. I need to make all the columns with characters into factors. I tried to follow along with the code written with assignment 4 but I get an error when I try to change the export category types into numbers. The code I am using for that did not get an error for protected status, which came above it. If I check what type of object Export Category is, it says "null" while all other columns I changed into factors say "list".
+
+STATUS:Resolved in class with as.numeric function
+
+```{r}
+#problem because some columns have characters in row
+#includes survey method, protected status,habitat type, geomorphology, and export category
+fd<-read_csv("FishdataRecreating.csv",
+             col_types= cols(Protected.status=col_factor(),
+                             Export_Category=col_factor(),
+                             Geomorphology=col_factor(),
+                             Habitat.type=col_factor(),
+                             Survey.method=col_factor()))
+fd$Protected.status<-as.numeric(fd$Protected.status)
+fd$Export_Category<-as.numeric(fd$Export_Category)
+fd$Geomorphology<-as.numeric(fd$Geomorphology)
+fd$Habitat.type<-as.numeric(fd$Habitat.type)
+fd$Survey.method<-as.numeric(fd$Survey.method)
+
+
+
+
+
+```
+
+
+To get used to the data I will first create a scatter plot to test out the relationships
+```{r}
+ggplot(fd)+
+    aes(x=HD_20)+
+    aes(y=Mean_length)+
+    aes(color=Export_Category)+
+    geom_point()+
+    geom_smooth(method="lm")+
+    xlab("Human Density over 20km")+
+    ylab("Mean length of Parrotfish (cm)")
+
+ggplot(fd)+
+    aes(x=Tourist20)+
+    aes(y=Mean_length)+
+    geom_point()+
+    geom_smooth(method="lm")+
+    xlab("Tourist values over 20km")+
+    ylab("Mean length of Parrotfish (cm)")
+
+ggplot(fd)+
+    aes(x=Distance_Port)+
+    aes(y=Mean_length)+
+    geom_point()+
+    geom_smooth(method="lm")+
+    xlab("Distance from Site to Nearest Port")+
+    ylab("Mean length of Parrotfish (cm)")
+
+linearmodel<- lm(fd$Mean_length ~ fd$HD_20, data=fishdata)
+summary(linearmodel)
+linearmodel2<- lm(fd$Mean_length ~ fd$Tourist20, data=fishdata)
+summary(linearmodel2)
+```
+From running those tests I see that there is a significant relationship between the density of tourists over 20 kilometers as well as the population density, and the mean length of Parrotfish, with the length decreasing as tourist or human density increases. This is also seen in the scatterplots. 
+
+Now I am starting to try the BRT
+```{r}
+source("brt.functions.R")
+library(gbm)
+parrotfish.tc5.lr01 <- gbm.step(data=fd, 
+    gbm.x = 2:22,
+    gbm.y = 1,
+    family = "gaussian",
+    tree.complexity = 5,
+    learning.rate = 0.01,
+    bag.fraction = 0.5,
+    ZI= FALSE)
+# creating a model with my data
+#gbm.x is referring to the columns that have predictor variables
+#gbm.y is referring to the column with the response variable
+# family is the error structure used in the tutorial
+#just trying different tree complexities and learning rates until we get a model with enough trees (over 1000)
+```
+Status:RESOLVED
+When I try to run this it gives me an error saying: Must subset columns with a valid subscript vector. i Logical subscripts must match the size of the indexed input
+I fixed this problem by changing the family from bernoulli to gaussian and adding the line ZI=FALSE because the data is not presence/absence it's numeric observations (length)
+
+Next I retried the model with new learning rates and tree complexities until I got over 1000 trees created. With a learning rate of 0.0029 and a tree complexity of 4 I have 1,000 trees.
+```{r}
+parrotfish.tc4.lr0029 <- gbm.step(data=fd, 
+    gbm.x = c(2:21),
+    gbm.y = 1,
+    family = "gaussian",
+    tree.complexity = 4,
+    learning.rate = 0.0029,
+    bag.fraction = 0.5,
+    ZI=FALSE)
+```
+Now I am going to simplify the trees by dropping variables that don't have strong predictive power. 
+```{r}
+fish_simp<-
+```
