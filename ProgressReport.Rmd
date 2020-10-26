@@ -37,12 +37,12 @@ In this code chunk I will begin following the tutorial mentioned above but apply
 
 STATUS:Resolved in class with as.numeric function
 ```{r columns into functions}
-fd<-read_csv("./Data/FishdataRecreating.csv",
+fd<-as.data.frame(read_csv("./Data/FishdataRecreating.csv",
              col_types= cols(Protected.status=col_factor(),
                              Export_Category=col_factor(),
                              Geomorphology=col_factor(),
                              Habitat.type=col_factor(),
-                             Survey.method=col_factor()))
+                             Survey.method=col_factor())))
 
 fd$Protected.status<-as.numeric(fd$Protected.status)
 fd$Export_Category<-as.numeric(fd$Export_Category)
@@ -86,7 +86,7 @@ summary(linearmodel2)
 From running those tests I see that there is a significant relationship between the density of tourists over 20 kilometers as well as the population density, and the mean length of Parrotfish, with the length decreasing as tourist or human density increases. This is also seen in the scatterplots. 
 
 Now I am starting to try the BRT
-```{r}
+```{r brt}
 source("brt.functions.R")
 library(gbm)
 parrotfish.tc5.lr01 <- gbm.step(data=fd, 
@@ -103,16 +103,15 @@ parrotfish.tc5.lr01 <- gbm.step(data=fd,
 # family is the error structure used in the tutorial
 #just trying different tree complexities and learning rates until we get a model with enough trees (over 1000)
 ```
-Status:RESOLVED (kind of)
+Status:RESOLVED 
 When I try to run this it gives me an error saying: Must subset columns with a valid subscript vector. i Logical subscripts must match the size of the indexed input.
-I fixed this problem by changing the family from bernoulli to gaussian and adding the line ZI=FALSE because the data is not presence/absence it's numeric observations (length)
+Issue was that my data was a tibble not in a data frame. Once I specified data frame the model runs smoothly. I also had to edit the default parameters from the tutorial to match my data. For example, I had to change the family from bernoulli to gaussian and add the line ZI=FALSE because the data is not presence/absence it's numeric observations (length)
 
 Next I retried the model with new learning rates and tree complexities until I got over 1000 trees created. With a learning rate of 0.0029 and a tree complexity of 4 I have 1,000 trees.
 
-HOWEVER, when I reopened this project on SUnday, October 18, 2020 and tried to add more code for the model I got the original error message which I thought I had resolved? 
-```{r}
+```{r getting optimal tree number}
 parrotfish.tc4.lr0029 <- gbm.step(data=fd, 
-    gbm.x = 2:12,
+    gbm.x = 2:22,
     gbm.y = 1,
     family = "gaussian",
     tree.complexity = 4,
@@ -120,3 +119,15 @@ parrotfish.tc4.lr0029 <- gbm.step(data=fd,
     bag.fraction = 0.5,
     ZI=FALSE)
 ```
+
+```{r simplyifing model}
+fish_simp<- gbm.simplify(parrotfish.tc4.lr0029, n.drops=5) 
+```
+After running the simplifying function it shows that my model has the lowest deviance values as is, therefore dropping a predicting variable is not advised.
+
+Now I have everything I need to recreate the Figure. To do this I use the gbm.plot function. This creates a plot for the best 8 predictors. I am currently stuck because the image window pops up with the plots, but then disappears. 
+```{r plotting Figure 2}
+gbm.plot(parrotfish.tc4.lr0029, n.plots=8, write.title =T )
+
+```
+
