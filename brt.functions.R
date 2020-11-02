@@ -1023,10 +1023,10 @@ for (j in c(1:n.plots)) {  #cycle through the first time and get the range of th
      n.pages <- n.pages + 1
    }
 
-   if (plot.count == 0) {
-     windows(width = 11, height = 8)
-     par(mfrow = plot.layout)
-   }
+  # if (plot.count == 0) {
+   #  windows(width = 11, height = 8)
+    # par(mfrow = plot.layout)
+   #}
 
     plot.count <- plot.count + 1
 
