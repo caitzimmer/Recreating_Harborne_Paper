@@ -1,0 +1,57 @@
+---
+title: "Final Report Parrotfish"
+author: "Caitlin Zimmer"
+date: "11/15/2020"
+output: html_document
+bibliography: [Harborne.bib, Elith.bib]
+
+---
+
+``````{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE) 
+library(tidyverse)
+library(gbm)
+```
+      For this project I want to recreate the paper"Modeling and mapping regional‐scale patterns of fishing impact and fish stocks to support coral‐reef management in Micronesia" by Harborne et al that looks at modeling and mapping the impacts of fishing on coral reefs. I want to specifically recreate Figure 2 which shows the boosted regression tree outcomes for the variables that explained the most variation in mean parrot fish length [@Harborne2018]. The data for this paper was easily available, but the code was not provided. However, the paper cited a tutorial that they loosely follow to conduct the BRTs. I am using R with the package gbm and code provided in the tutorial by Elith et al.
+     The data provided was observations at 470 reefs. At each reef the mean parrotfish length was recorded as well as 20 variables that could possibly be predictors for variance in mean length, such as sea surface temperature or distance to port. 
+    My first step was to convert the data that was provided in excel files into a CSV. Once I did this, the column names were irregular, with weird characters and multiple spaces. I fixed this by renaming the columns in R and then making this into a new CSV so I would not have to deal with as many files.
+    In order to run a boosted regression tree, all the columns have to be factors. Therefore, my next step was to do this by reading in the csv as a tibble with the columns that had characters as data, as factors instead.I then used the function "as.numeric" for the columns Protected Status, Export Category, Geomorphology, Habitat Type, and Survey Method. I knew that all columns had to be factors because this was stated in the tutorial, however, no code was provided on how to do this if necessary [@Elith2008]. Therefore I had to figure out to use the function "as.numeric" on my own.
+    My next step was to run the BRT and figure out what learning rate and tree complexity values would create a model with 1,000 trees. This code was provided in the tutorial. The source code defined most variables which made it easy to apply to the data from Harborne et al. Some problems I ran into while running the model was that I used tidyverse functions to make the columns not factors so the data was in a tibble, not a data frame and therefore the source code would not run because it was data frame specific. I fixed this by using the function "as.data.frame" when I read the csv in. I also ran into a few problems because the tutorial on BRTs was based on data that was presence or absence, while the data from Harborne was numeric. This means I had to change the family type in the model from "Bernoulli" to "Gaussian" and I had to say ZI=FALSE. These changes were not mentioned in the paper and I had to figure them out independently. Additionally, the code written in the tutorial was systems specific for Windows platforms and had to be changed in order to be fully reproducible. 
+    Ultimately. despite the code not being available I recreated Figure 2 fairly accurately. Due to the nature of the boosted regression tree models, the values for explained variance will not be the exact same in my report as in the paper. However, the general trends are the same with distance to port and sea surface temperature being the top predictors for parrotfish length. 
+    Before starting this project I never would have thought I could recreate the figure without having the code provided. However, I was able to do this through looking at the cited sources and paying attention to the details in the methods. There were many obstacles that I would not have been able to overcome if I were not in this class. This paper provided a good frame work for reproducibility but in the future I think papers should provide the code they used. 
+```{r, making columns into factors}
+fd<-as.data.frame(read_csv("./Data/FishdataRecreating.csv",
+             col_types= cols(Protected.status=col_factor(),
+                             Export_Category=col_factor(),
+                             Geomorphology=col_factor(),
+                             Habitat.type=col_factor(),
+                             Survey.method=col_factor())))
+
+fd$Protected.status<-as.numeric(fd$Protected.status)
+fd$Export_Category<-as.numeric(fd$Export_Category)
+fd$Geomorphology<-as.numeric(fd$Geomorphology)
+fd$Habitat.type<-as.numeric(fd$Habitat.type)
+fd$Survey.method<-as.numeric(fd$Survey.method)
+```
+```{r, running the model}
+source("brt.functions.R")
+newfd<-select(fd, -c(Lat, Tourist20, Tourist200, SED2))
+newfd$Mean_length<- log(newfd$Mean_length)
+parrotfish.tc5.lr0045 <- gbm.step(data=newfd, 
+    gbm.x = 2:18,
+    gbm.y = 1,
+    family = "gaussian",
+    tree.complexity = 5,
+    learning.rate = 0.0045,
+    bag.fraction = 0.5,
+    ZI=FALSE,
+    verbose = FALSE,
+    silent = TRUE,
+    plot.main = FALSE)
+```
+```{r, plotting the model}
+par(mfrow=c(2,4))
+gbm.plot(parrotfish.tc5.lr0045, n.plots=8, write.title =T )
+```
+
+Works Cited:
